@@ -81,3 +81,11 @@
 - **Murâja'a globale** : bouton "lecture en chaîne" qui joue séquentiellement tous les abyât du matn (pour réviser cumulativement)
 - **31/32 backend tests pass** (1 minor spec deviation now fixed in iteration follow-up)
 
+
+### v1.3 — Iteration 4 (current)
+- **Structure hiérarchique des matn** : chaque passage (bayt) peut désormais avoir des champs optionnels `section` et `chapter`
+- **Affichage groupé** : le lecteur regroupe visuellement les abyât par section > chapitre avec en-têtes
+- **Exemple appliqué** : Adhkâr wa Adab → 2 sections (Les Invocations, Les Convenances) × 8 chapitres (matin, soir, sommeil, voyage, toilettes, repas, maison, mosquée)
+- **Édition** : pages Ajouter et Modifier incluent 2 inputs par passage (Section, Chapitre) + propagation automatique de la section/chapitre précédent quand on ajoute un nouveau passage
+- **43/43 tests backend** ✅
+
