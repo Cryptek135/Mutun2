@@ -32,7 +32,7 @@ api_router = APIRouter(prefix="/api")
 # ============ Models ============
 
 class Bayt(BaseModel):
-    index: int
+    index: Optional[int] = None
     arabic: str
     translation_fr: str
 

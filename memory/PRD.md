@@ -67,3 +67,17 @@
 - iteration_1: 14/14 backend ✅
 - iteration_2: 22/22 backend ✅ (Programs + new matn + 42 hadiths)
 
+
+### v1.2 — Iteration 3 (current)
+- **Édition des moutoun** : PUT /api/moutoun/{id} permet de corriger même les moutoun préchargés (traductions, ajout de passages, réorganisation)
+- **seed_version logic** : les éditions utilisateur sont marquées seed_version=9999 et préservées de tout futur upsert
+- **Page /matn/:id/modifier** : éditeur complet avec ajout/suppression/réorganisation de passages
+- **Audio loop** : 1× / 3× / 5× / ∞ — l'utilisateur peut écouter en boucle un passage difficile
+- **Modes auto-test** dans la barre flottante :
+  - Normal (affiché)
+  - Premier mot — seul le premier mot de chaque bayt est affiché (le reste = points)
+  - Texte à trous — masque un mot sur trois pour auto-évaluation
+  - Masqué — flou complet (mode test classique)
+- **Murâja'a globale** : bouton "lecture en chaîne" qui joue séquentiellement tous les abyât du matn (pour réviser cumulativement)
+- **31/32 backend tests pass** (1 minor spec deviation now fixed in iteration follow-up)
+
