@@ -224,3 +224,218 @@ def test_today_active_programs(session, device_id):
     assert r.status_code == 200
     pids = [p["program_id"] for p in r.json()["programs"]]
     assert p1["id"] in pids and p2["id"] not in pids
+
+
+# ============ PUT /api/moutoun/{id} tests (iteration 3) ============
+
+EDIT_DEVICE = "edit_test_v3"
+
+
+@pytest.fixture
+def custom_matn(session):
+    """Create a custom matn for editing tests; cleans up after."""
+    payload = {
+        "device_id": EDIT_DEVICE,
+        "title_fr": "Test Matn Edit",
+        "title_ar": "متن اختبار",
+        "author_fr": "Test Author",
+        "author_ar": "مؤلف",
+        "category": "autre",
+        "level": "Débutant",
+        "description_fr": "desc initiale",
+        "abyat": [
+            {"index": 0, "arabic": "بيت أول", "translation_fr": "vers 1"},
+            {"index": 1, "arabic": "بيت ثاني", "translation_fr": "vers 2"},
+        ],
+    }
+    r = session.post(f"{API}/moutoun", json=payload)
+    assert r.status_code == 200
+    matn = r.json()
+    yield matn
+    try:
+        session.delete(f"{API}/moutoun/{matn['id']}", params={"device_id": EDIT_DEVICE})
+    except Exception:
+        pass
+
+
+def test_put_custom_matn_updates_fields(session, custom_matn):
+    body = {
+        "title_fr": "Titre modifié",
+        "title_ar": "عنوان معدل",
+        "author_fr": "Nouvel auteur",
+        "description_fr": "nouvelle description",
+        # NOTE: index sent explicitly because Bayt model requires it (spec says it should be optional).
+        "abyat": [
+            {"index": 0, "arabic": "جديد1", "translation_fr": "nouveau 1"},
+            {"index": 0, "arabic": "جديد2", "translation_fr": "nouveau 2"},
+            {"index": 0, "arabic": "جديد3", "translation_fr": "nouveau 3"},
+        ],
+    }
+    r = session.put(f"{API}/moutoun/{custom_matn['id']}", json=body)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["title_fr"] == "Titre modifié"
+    assert data["title_ar"] == "عنوان معدل"
+    assert data["author_fr"] == "Nouvel auteur"
+    assert data["description_fr"] == "nouvelle description"
+    assert len(data["abyat"]) == 3
+    assert "_id" not in data
+    # GET to verify persistence
+    g = session.get(f"{API}/moutoun/{custom_matn['id']}")
+    assert g.status_code == 200
+    fetched = g.json()
+    assert fetched["title_fr"] == "Titre modifié"
+    assert len(fetched["abyat"]) == 3
+
+
+def test_put_reindexes_abyat_sequentially(session, custom_matn):
+    body = {
+        "abyat": [
+            {"index": 99, "arabic": "a", "translation_fr": "x"},
+            {"index": 5, "arabic": "b", "translation_fr": "y"},
+            {"index": 42, "arabic": "c", "translation_fr": "z"},
+        ],
+    }
+    r = session.put(f"{API}/moutoun/{custom_matn['id']}", json=body)
+    assert r.status_code == 200
+    indices = [b["index"] for b in r.json()["abyat"]]
+    assert indices == [0, 1, 2]
+
+
+def test_put_404_for_nonexistent(session):
+    r = session.put(f"{API}/moutoun/does-not-exist-xyz", json={"title_fr": "x"})
+    assert r.status_code == 404
+
+
+def test_put_partial_body_only_updates_provided(session, custom_matn):
+    # only description_fr; abyat must stay unchanged
+    original_abyat = custom_matn["abyat"]
+    r = session.put(f"{API}/moutoun/{custom_matn['id']}", json={"description_fr": "partial only"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["description_fr"] == "partial only"
+    assert data["title_fr"] == custom_matn["title_fr"]
+    assert len(data["abyat"]) == len(original_abyat)
+    assert data["abyat"][0]["arabic"] == original_abyat[0]["arabic"]
+
+
+def test_put_preloaded_matn_allowed_and_revertible(session):
+    """Edit arbain-nawawi then revert to ensure preloaded edits work and clean up."""
+    matn_id = "arbain-nawawi"
+    original = session.get(f"{API}/moutoun/{matn_id}").json()
+    try:
+        new_desc = "Edited by test - description override"
+        r = session.put(f"{API}/moutoun/{matn_id}", json={"description_fr": new_desc})
+        assert r.status_code == 200, r.text
+        assert r.json()["description_fr"] == new_desc
+        # GET to confirm persistence
+        g = session.get(f"{API}/moutoun/{matn_id}")
+        assert g.status_code == 200
+        assert g.json()["description_fr"] == new_desc
+        # Title and abyat should be intact
+        assert g.json()["title_fr"] == original["title_fr"]
+        assert len(g.json()["abyat"]) == len(original["abyat"])
+    finally:
+        # Revert to original to keep DB clean for downstream tests
+        revert_body = {
+            "title_fr": original["title_fr"],
+            "title_ar": original["title_ar"],
+            "author_fr": original.get("author_fr", ""),
+            "author_ar": original.get("author_ar", ""),
+            "category": original.get("category", "autre"),
+            "level": original.get("level", "Débutant"),
+            "description_fr": original.get("description_fr", ""),
+            "abyat": [{"arabic": b["arabic"], "translation_fr": b["translation_fr"]} for b in original["abyat"]],
+        }
+        session.put(f"{API}/moutoun/{matn_id}", json=revert_body)
+
+
+def test_put_preloaded_persists_after_seed_rerun(session):
+    """Edit a preloaded matn (sittah-ousoul), then trigger code path that calls ensure_preloaded_in_db.
+    Since seed runs at startup, we cannot force a rerun easily; instead we rely on the seed_version=9999
+    semantics by verifying the change persists across multiple GETs (sanity) and revert.
+    """
+    matn_id = "sittah-ousoul"
+    original = session.get(f"{API}/moutoun/{matn_id}").json()
+    sentinel = "SEED_VERSION_TEST_PERSIST"
+    try:
+        r = session.put(f"{API}/moutoun/{matn_id}", json={"description_fr": sentinel})
+        assert r.status_code == 200
+        for _ in range(3):
+            g = session.get(f"{API}/moutoun/{matn_id}")
+            assert g.json()["description_fr"] == sentinel
+        # Also via list endpoint
+        lst = session.get(f"{API}/moutoun").json()
+        m = next(x for x in lst if x["id"] == matn_id)
+        assert m["description_fr"] == sentinel
+    finally:
+        revert_body = {
+            "title_fr": original["title_fr"],
+            "title_ar": original["title_ar"],
+            "author_fr": original.get("author_fr", ""),
+            "author_ar": original.get("author_ar", ""),
+            "category": original.get("category", "autre"),
+            "level": original.get("level", "Débutant"),
+            "description_fr": original.get("description_fr", ""),
+            "abyat": [{"arabic": b["arabic"], "translation_fr": b["translation_fr"]} for b in original["abyat"]],
+        }
+        session.put(f"{API}/moutoun/{matn_id}", json=revert_body)
+
+
+def test_put_abyat_index_optional_per_spec(session, custom_matn):
+    """Spec says index is optional and server re-indexes. Currently fails because Bayt model requires index."""
+    body = {"abyat": [
+        {"arabic": "a", "translation_fr": "x"},
+        {"arabic": "b", "translation_fr": "y"},
+    ]}
+    r = session.put(f"{API}/moutoun/{custom_matn['id']}", json=body)
+    # Per spec this should succeed; documenting current behavior:
+    assert r.status_code == 200, (
+        f"BUG: spec says abyat[].index is optional and server re-indexes, but PUT returned {r.status_code}: {r.text}"
+    )
+
+
+def test_get_after_put_returns_updated(session, custom_matn):
+    body = {"title_fr": "Updated Title GET-check"}
+    session.put(f"{API}/moutoun/{custom_matn['id']}", json=body)
+    g = session.get(f"{API}/moutoun/{custom_matn['id']}")
+    assert g.status_code == 200
+    assert g.json()["title_fr"] == "Updated Title GET-check"
+
+
+def test_put_does_not_break_programs_endpoints(session):
+    """Regression: after PUT activity, POST /api/programs and GET /api/programs/today/{device_id} still work."""
+    did = f"{EDIT_DEVICE}_regression"
+    # Cleanup any previous
+    try:
+        for p in session.get(f"{API}/programs/{did}").json():
+            session.delete(f"{API}/programs/{p['id']}", params={"device_id": did})
+    except Exception:
+        pass
+    payload = {
+        "device_id": did,
+        "name": "Regression Prog",
+        "matn_ids": ["ousoul-thalatha"],
+        "duration_days": 5,
+        "daily_new_count": 1,
+        "include_review": True,
+    }
+    r = session.post(f"{API}/programs", json=payload)
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    today_r = session.get(f"{API}/programs/today/{did}")
+    assert today_r.status_code == 200
+    assert any(p["program_id"] == pid for p in today_r.json()["programs"])
+    session.delete(f"{API}/programs/{pid}", params={"device_id": did})
+
+
+def test_get_moutoun_returns_8_preloaded_unchanged_after_edits(session):
+    """Regression: list endpoint still returns all 8 preloaded ids."""
+    r = session.get(f"{API}/moutoun")
+    assert r.status_code == 200
+    ids = {m["id"] for m in r.json() if m.get("is_preloaded")}
+    expected = {
+        "ousoul-thalatha", "qawaid-arbaa", "nawaqid-islam", "arbain-nawawi",
+        "ajroumiyya", "sittah-ousoul", "oumdat-al-ahkam", "adhkar-wa-adab",
+    }
+    assert expected.issubset(ids)

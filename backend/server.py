@@ -165,15 +165,25 @@ async def update_streak(device_id: str):
 
 
 async def ensure_preloaded_in_db():
-    """Seed/refresh preloaded moutoun into DB on startup (upsert so updates apply)."""
+    """Seed/refresh preloaded moutoun. Only updates if seed_version is newer (preserves user edits)."""
+    SEED_VERSION = 2  # bump this when matn content is updated upstream
     for m in PRELOADED_MOUTOUN:
-        doc = {**m, "is_preloaded": True, "device_id": None}
         existing = await db.moutoun.find_one({"id": m["id"]}, {"_id": 0})
-        if existing:
-            doc["created_at"] = existing.get("created_at", datetime.now(timezone.utc).isoformat())
-        else:
-            doc["created_at"] = datetime.now(timezone.utc).isoformat()
-        await db.moutoun.update_one({"id": m["id"]}, {"$set": doc}, upsert=True)
+        if not existing:
+            doc = {**m, "is_preloaded": True, "device_id": None,
+                   "seed_version": SEED_VERSION,
+                   "created_at": datetime.now(timezone.utc).isoformat()}
+            await db.moutoun.insert_one(doc)
+            continue
+        existing_version = existing.get("seed_version", 1)
+        # If user has edited (seed_version 9999), never overwrite
+        if existing_version >= 9999:
+            continue
+        if existing_version < SEED_VERSION:
+            doc = {**m, "is_preloaded": True, "device_id": None,
+                   "seed_version": SEED_VERSION,
+                   "created_at": existing.get("created_at", datetime.now(timezone.utc).isoformat())}
+            await db.moutoun.update_one({"id": m["id"]}, {"$set": doc})
 
 
 # ============ Routes ============
@@ -206,6 +216,34 @@ async def create_matn(payload: MatnCreate):
     matn = Matn(**payload.model_dump(), is_preloaded=False)
     await db.moutoun.insert_one(matn.model_dump())
     return matn
+
+
+class MatnUpdate(BaseModel):
+    title_fr: Optional[str] = None
+    title_ar: Optional[str] = None
+    author_fr: Optional[str] = None
+    author_ar: Optional[str] = None
+    category: Optional[str] = None
+    level: Optional[str] = None
+    description_fr: Optional[str] = None
+    abyat: Optional[List[Bayt]] = None
+
+
+@api_router.put("/moutoun/{matn_id}", response_model=Matn)
+async def update_matn(matn_id: str, payload: MatnUpdate):
+    existing = await db.moutoun.find_one({"id": matn_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Matn introuvable")
+    update_doc = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if "abyat" in update_doc:
+        # Re-index abyat sequentially
+        for i, b in enumerate(update_doc["abyat"]):
+            b["index"] = i
+    # Mark as user-edited so future seed runs don't overwrite
+    update_doc["seed_version"] = 9999
+    await db.moutoun.update_one({"id": matn_id}, {"$set": update_doc})
+    updated = await db.moutoun.find_one({"id": matn_id}, {"_id": 0})
+    return updated
 
 
 @api_router.delete("/moutoun/{matn_id}")

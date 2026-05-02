@@ -1,12 +1,10 @@
 // Arabic Text-to-Speech using the browser's Web Speech API.
 // NOTE: This is automated text-to-speech (TTS), NOT a real recitation by a Qari.
-// Quality varies by browser/OS. For real recitations, an external service like
-// ElevenLabs would be needed.
 let currentUtterance = null;
+let loopState = null; // { text, opts, count, current }
 
 function pickArabicVoice() {
     const voices = window.speechSynthesis.getVoices();
-    // Prefer Saudi/Egyptian male voices for matn reading
     const preferences = [
         (v) => /ar-SA/i.test(v.lang) && /male|man|majed|naim/i.test(v.name || ""),
         (v) => /ar-SA/i.test(v.lang),
@@ -21,27 +19,61 @@ function pickArabicVoice() {
     return voices[0];
 }
 
-export function speakArabic(text, { rate = 0.7, onEnd, onStart, onError } = {}) {
-    if (!("speechSynthesis" in window)) {
-        onError && onError(new Error("Synthèse vocale non supportée par ce navigateur"));
-        return null;
-    }
-    stopSpeaking();
+function speakOnce(text, { rate = 0.7, onEnd, onStart, onError } = {}) {
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = "ar-SA";
     utter.rate = rate;
     utter.pitch = 0.95;
     const v = pickArabicVoice();
     if (v) utter.voice = v;
-    utter.onend = () => { currentUtterance = null; onEnd && onEnd(); };
     utter.onstart = () => { onStart && onStart(); };
+    utter.onend = () => { currentUtterance = null; onEnd && onEnd(); };
     utter.onerror = (e) => { currentUtterance = null; onError && onError(e); };
     currentUtterance = utter;
     window.speechSynthesis.speak(utter);
     return utter;
 }
 
+/**
+ * speakArabic with optional looping.
+ * @param {string} text
+ * @param {object} opts - rate, onStart, onEnd (called when ALL loops done), onError, onLoopEnd (called per loop), loop (1=once, 3, 5, Infinity)
+ */
+export function speakArabic(text, opts = {}) {
+    if (!("speechSynthesis" in window)) {
+        opts.onError && opts.onError(new Error("Synthèse vocale non supportée"));
+        return null;
+    }
+    stopSpeaking();
+    const loop = Math.max(1, opts.loop || 1);
+    loopState = { text, opts, count: loop, current: 0 };
+
+    function playNext() {
+        if (!loopState) return;
+        loopState.current += 1;
+        const isLast = loopState.current >= loopState.count;
+        speakOnce(text, {
+            rate: opts.rate,
+            onStart: loopState.current === 1 ? opts.onStart : opts.onLoopStart,
+            onError: opts.onError,
+            onEnd: () => {
+                opts.onLoopEnd && opts.onLoopEnd(loopState.current);
+                if (!loopState) return;
+                if (isLast) {
+                    loopState = null;
+                    opts.onEnd && opts.onEnd();
+                } else {
+                    setTimeout(playNext, 350);
+                }
+            },
+        });
+    }
+    playNext();
+    return true;
+}
+
 export function stopSpeaking() {
+    loopState = null;
     if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
     }

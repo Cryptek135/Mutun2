@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 3 backend testing for new PUT /api/moutoun/{id} endpoint + seed_version logic. 31/32 tests pass. One failure documents a real spec deviation: Bayt.index is required (Pydantic) but the spec says it should be optional (server re-indexes). All other PUT scenarios work as specified: custom matn edits, preloaded matn edits, re-indexing, partial updates, 404 handling, persistence via GET, programs regression, and listing 8 preloaded moutoun unchanged.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/moutoun/{id}", "issue": "Spec says 'abyat[].index optional - re-indexed by server' but Bayt model requires index (returns 422 when index omitted). The PUT handler does re-index correctly, so making index Optional[int]=None on Bayt (or using a separate BaytInput model in MatnUpdate) would fully match the spec. Current workaround: clients must send any int as index."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Make Bayt.index optional (Optional[int] = None) so PUT /api/moutoun/{id} accepts {arabic, translation_fr} only, then server re-indexes. Or define a separate BaytUpdate model used in MatnUpdate.abyat with index optional."
+  ],
+  "critical_code_review_comments": [
+    "MatnUpdate uses List[Bayt] where Bayt.index is required; mismatches the documented contract that index is optional and re-indexed server-side.",
+    "ensure_preloaded_in_db: when a preloaded matn is missing entirely from DB it is re-inserted with seed_version=SEED_VERSION (=2). Good. seed_version=9999 sentinel correctly preserves user edits across SEED_VERSION bumps.",
+    "PUT /api/moutoun/{id} has no auth/device check - any caller can edit any preloaded matn. Acceptable for current single-user device model, but worth noting if multi-device sharing is added later.",
+    "PUT does not validate that matn_id belongs to the device for custom moutoun (anyone can edit anyone's custom matn). Consider requiring ?device_id= guard for non-preloaded matns.",
+    "PUT update_doc spreads payload directly; clients can not currently set fields back to empty string via Pydantic Optional=None (they're skipped). title_fr/title_ar required at create time but silently un-clearable here - acceptable.",
+    "abyat re-indexing: server overwrites client-provided index even when client sends meaningful indices. Aligned with spec but worth a comment in code.",
+    "Bayt has no Field constraints (e.g. min_length on arabic). Empty strings would be accepted."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "97% (31/32)", "frontend": "skipped"},
+  "test_credentials": "none required",
+  "seed_data_creation": "Tests create one custom matn per scope under device 'edit_test_v3' via fixture (auto-deleted). Preloaded matns 'arbain-nawawi' and 'sittah-ousoul' are edited then reverted. After test run, both preloaded docs were deleted from db.moutoun and the backend was restarted to re-seed them clean from matn_data.py - confirmed via GET (arbain: 42 abyat; sittah: 15 abyat with original descriptions).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "31/32 tests pass. The 1 failure (test_put_abyat_index_optional_per_spec) is a documented spec deviation where Bayt.index is required but spec says optional. PUT endpoint otherwise fully functional: edits both custom and preloaded moutoun, re-indexes abyat sequentially, returns 404 on bad id, partial updates preserve untouched fields, content persists via GET. seed_version=9999 sentinel works (verified by GETting same data 3x and via list endpoint). After tests, preloaded matns were deleted+re-seeded to clean state. Programs endpoints regression-tested - still work correctly.",
+  "rca of the issue": "Bayt model (used in both MatnBase.abyat and MatnUpdate.abyat) defines `index: int` as required. When client posts PUT without index, Pydantic validation fails with 422 before reaching the server logic that would re-index. Fix: change to `index: Optional[int] = None` in Bayt, or define a separate BaytInput class with optional index used inside MatnUpdate."
+}

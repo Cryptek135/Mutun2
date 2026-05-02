@@ -7,6 +7,7 @@ import MatnReader from "./pages/MatnReader";
 import Tamrin from "./pages/Tamrin";
 import Stats from "./pages/Stats";
 import AddMatn from "./pages/AddMatn";
+import EditMatn from "./pages/EditMatn";
 import Programs from "./pages/Programs";
 import CreateProgram from "./pages/CreateProgram";
 import ProgramDetail from "./pages/ProgramDetail";
@@ -22,6 +23,7 @@ function App() {
                         <Route path="/" element={<Dashboard />} />
                         <Route path="/bibliotheque" element={<Library />} />
                         <Route path="/matn/:id" element={<MatnReader />} />
+                        <Route path="/matn/:id/modifier" element={<EditMatn />} />
                         <Route path="/tamrin" element={<Tamrin />} />
                         <Route path="/statistiques" element={<Stats />} />
                         <Route path="/ajouter" element={<AddMatn />} />

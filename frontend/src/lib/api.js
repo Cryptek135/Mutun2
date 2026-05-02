@@ -23,6 +23,10 @@ export const api = {
         const { data } = await http.delete(`/moutoun/${id}`, { params: { device_id: getDeviceId() } });
         return data;
     },
+    updateMatn: async (id, updates) => {
+        const { data } = await http.put(`/moutoun/${id}`, updates);
+        return data;
+    },
     getProgress: async (matn_id) => {
         const { data } = await http.get(`/progress/${getDeviceId()}`, { params: matn_id ? { matn_id } : {} });
         return data;
