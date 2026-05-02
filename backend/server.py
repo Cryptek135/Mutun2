@@ -167,7 +167,8 @@ async def update_streak(device_id: str):
 
 
 async def ensure_preloaded_in_db():
-    """Seed/refresh preloaded moutoun. Only updates if seed_version is newer (preserves user edits)."""
+    """Seed/refresh preloaded moutoun. Only updates if seed_version is newer (preserves user edits).
+    Tombstoned (is_deleted=true) moutoun are never restored automatically — use POST /moutoun/{id}/restore."""
     SEED_VERSION = 3  # bump this when matn content is updated upstream
     for m in PRELOADED_MOUTOUN:
         existing = await db.moutoun.find_one({"id": m["id"]}, {"_id": 0})
@@ -178,7 +179,7 @@ async def ensure_preloaded_in_db():
             await db.moutoun.insert_one(doc)
             continue
         existing_version = existing.get("seed_version", 1)
-        # If user has edited (seed_version 9999), never overwrite
+        # If user has edited OR tombstoned (seed_version 9999), never overwrite
         if existing_version >= 9999:
             continue
         if existing_version < SEED_VERSION:
@@ -197,17 +198,20 @@ async def root():
 
 @api_router.get("/moutoun", response_model=List[Matn])
 async def list_moutoun(device_id: Optional[str] = None):
-    """List all moutoun: preloaded + user-created for this device."""
-    query = {"$or": [{"is_preloaded": True}]}
-    if device_id:
-        query["$or"].append({"device_id": device_id})
+    """List all moutoun: preloaded + user-created for this device. Excludes tombstoned."""
+    query = {
+        "$and": [
+            {"$or": [{"is_preloaded": True}] + ([{"device_id": device_id}] if device_id else [])},
+            {"is_deleted": {"$ne": True}},
+        ]
+    }
     docs = await db.moutoun.find(query, {"_id": 0}).to_list(500)
     return docs
 
 
 @api_router.get("/moutoun/{matn_id}", response_model=Matn)
 async def get_matn(matn_id: str):
-    doc = await db.moutoun.find_one({"id": matn_id}, {"_id": 0})
+    doc = await db.moutoun.find_one({"id": matn_id, "is_deleted": {"$ne": True}}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Matn introuvable")
     return doc
@@ -254,11 +258,34 @@ async def delete_matn(matn_id: str, device_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Matn introuvable")
     if doc.get("is_preloaded"):
-        raise HTTPException(status_code=403, detail="Les moutoun préchargés ne peuvent pas être supprimés")
-    if doc.get("device_id") != device_id:
-        raise HTTPException(status_code=403, detail="Non autorisé")
-    await db.moutoun.delete_one({"id": matn_id})
+        # Tombstone preloaded moutoun so they don't come back on seed.
+        # User can restore later by deleting the tombstone and restarting.
+        await db.moutoun.update_one(
+            {"id": matn_id},
+            {"$set": {"is_deleted": True, "seed_version": 9999}},
+        )
+    else:
+        if doc.get("device_id") != device_id:
+            raise HTTPException(status_code=403, detail="Non autorisé")
+        await db.moutoun.delete_one({"id": matn_id})
     await db.progress.delete_many({"matn_id": matn_id, "device_id": device_id})
+    return {"ok": True}
+
+
+@api_router.post("/moutoun/{matn_id}/restore")
+async def restore_preloaded_matn(matn_id: str):
+    """Restore a tombstoned preloaded matn to its original seed content."""
+    existing = await db.moutoun.find_one({"id": matn_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Matn introuvable")
+    if not existing.get("is_preloaded"):
+        raise HTTPException(status_code=400, detail="Seuls les moutoun préchargés peuvent être restaurés")
+    source = next((m for m in PRELOADED_MOUTOUN if m["id"] == matn_id), None)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source introuvable")
+    await db.moutoun.delete_one({"id": matn_id})
+    await db.moutoun.insert_one({**source, "is_preloaded": True, "device_id": None, "seed_version": 3,
+                                 "created_at": datetime.now(timezone.utc).isoformat()})
     return {"ok": True}
 
 
