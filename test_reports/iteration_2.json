@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 2 backend testing for Moutoun API: validated 8 preloaded moutoun (incl. 3 new: Sittah Ousoul, Oumdat al-Ahkam, Adhkar wa Adab), 42 hadiths in Arba'in, full Programs feature (CRUD + validations + 5-active limit + schedule enrichment). All 22/22 tests passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/moutoun/{matn_id}", "issue": "No validation that matn id casing matches; works because IDs are lowercase by convention. Minor."},
+      {"endpoint": "POST /api/programs", "issue": "matn_ids are not validated against existing moutoun in DB. A program can be created with non-existent matn_ids, leading to empty schedule. Consider validating that all matn_ids exist."},
+      {"endpoint": "PATCH /api/programs/{id}", "issue": "status param accepts 'completed' but logic does not auto-mark programs completed when end_date is reached."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Optional: validate matn_ids exist in DB on POST /api/programs (return 400 if any unknown).",
+    "Optional: auto-transition program.status -> 'completed' when today > end_date in list/detail endpoints."
+  ],
+  "critical_code_review_comments": [
+    "server.py: logger is referenced inside ai_chat exception handler (line 508) but defined later (line 744). If an AI chat error occurs before module-level logger initialization completes, this works due to module load order; still, define logger at top of file to be safe.",
+    "create_program does not validate matn_ids against DB; schedule will silently skip unknown ids. Add a check: count must equal len(matn_ids).",
+    "_flatten_program_schedule rebuilds the schedule on every call to /programs/today (potentially expensive for many active programs). Consider caching schedule on the program document or computing only the needed day.",
+    "MAX_ACTIVE_PROGRAMS=5 hardcoded; consider env var for flexibility.",
+    "ProgramCreate has no validators on duration_days/daily_new_count; current 400 raises happen in handler, which is fine, but Pydantic Field constraints would be cleaner (Field(ge=1, le=365)).",
+    "PATCH endpoint uses query params for status; documentation/openapi clearer with body param. Acceptable per spec."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100%", "frontend": "skipped"},
+  "test_credentials": "none required",
+  "seed_data_creation": "Tests create programs under unique device_ids 'prog_test_v2_<testname>' and clean up via fixture teardown.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 22 backend tests pass. Test file at /app/backend/tests/backend_test.py covers moutoun preload (8 incl. 3 new), Arba'in 42 hadiths, programs CRUD with all validations (empty matn_ids, duration/daily_new bounds, 5-active limit, patch reactivation rejection, delete 404, today endpoint filtering by active status, _id never exposed). Cleanup fixture removes programs after each test. AI chat skipped (validated previously). Frontend skipped per request.",
+  "rca of the issue": "N/A - no issues found."
+}
