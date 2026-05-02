@@ -1,0 +1,149 @@
+{
+  "project_name": "Moutoun - Classical Texts App",
+  "theme": "LIGHT",
+  "archetype": "1 (Organic & Earthy)",
+  "vibe": "Scholarly, serene, modern, focused reading.",
+  "colors": {
+    "background": {
+      "primary": "#F8F6F0",
+      "secondary": "#EFEBE1",
+      "surface": "#FFFFFF",
+      "glass": "bg-white/60 backdrop-blur-xl"
+    },
+    "text": {
+      "primary": "#1A1816",
+      "secondary": "#6B655C",
+      "accent": "#9E4A35",
+      "arabic": "#0D0C0A"
+    },
+    "brand": {
+      "primary": "#9E4A35",
+      "secondary": "#2A4138",
+      "muted": "#D6CEBF"
+    },
+    "states": {
+      "success": "#2A4138",
+      "tamrin_active": "#9E4A35",
+      "streak": "#D4A373",
+      "border": "#E5DEC8"
+    }
+  },
+  "typography": {
+    "french_headings": {
+      "family": "Cormorant Garamond, serif",
+      "weights": "300, 400, 600",
+      "usage": "H1, H2, Hero statements",
+      "tailwind_class": "font-serif tracking-tight"
+    },
+    "french_body": {
+      "family": "Manrope, sans-serif",
+      "weights": "400, 500, 600",
+      "usage": "UI elements, translation text, buttons, dashboard data",
+      "tailwind_class": "font-sans"
+    },
+    "arabic_text": {
+      "family": "Amiri, serif",
+      "weights": "400, 700",
+      "usage": "All classical matn text",
+      "tailwind_class": "font-arabic leading-[2.5]"
+    },
+    "sizes": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl",
+      "arabic_base": "text-3xl sm:text-4xl",
+      "arabic_zoomed_max": "text-5xl sm:text-7xl",
+      "body": "text-base sm:text-lg leading-relaxed",
+      "labels": "text-xs tracking-[0.2em] uppercase font-semibold text-secondary"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous spacing. The text needs air to breathe. The reading interface must feel like an open manuscript, not a cramped PDF.",
+    "container": "max-w-7xl mx-auto px-6 md:px-12",
+    "bento_dashboard": "grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-8",
+    "reading_view": "grid grid-cols-1 lg:grid-cols-2 gap-12 items-start"
+  },
+  "components": {
+    "cards": {
+      "style": "bg-surface border border-border/60 rounded-xl p-8 shadow-sm transition-all hover:shadow-md hover:-translate-y-1",
+      "variants": {
+        "tamrin_card": "bg-[#9E4A35]/5 border-[#9E4A35]/20",
+        "streak_card": "bg-[#D6CEBF]/10 border-[#D6CEBF]/30"
+      }
+    },
+    "buttons": {
+      "primary": "bg-[#9E4A35] text-white rounded-full px-8 py-3 font-sans font-medium hover:bg-[#9E4A35]/90 transition-colors",
+      "secondary": "bg-transparent border border-[#9E4A35] text-[#9E4A35] rounded-full px-8 py-3 font-sans font-medium hover:bg-[#9E4A35]/5 transition-colors",
+      "icon_button": "p-3 rounded-full hover:bg-secondary/10 transition-colors text-primary"
+    },
+    "navigation": {
+      "style": "fixed top-0 w-full z-50 glass border-b border-border/40 py-4",
+      "active_link": "text-primary font-medium after:content-[''] after:absolute after:-bottom-2 after:left-0 after:w-full after:h-0.5 after:bg-primary"
+    },
+    "reading_controls": {
+      "style": "fixed bottom-8 left-1/2 -translate-x-1/2 bg-surface border border-border shadow-lg rounded-full px-6 py-3 flex items-center gap-6 z-40 backdrop-blur-md bg-white/90"
+    }
+  },
+  "page_layouts": {
+    "dashboard": {
+      "description": "Daily control center. Focuses on what needs to be learned today and the 5-day Tamrin cycle.",
+      "structure": [
+        "Header (Greeting + Streak)",
+        "Bento Grid:",
+        "- Main Card (col-span-1 md:col-span-4 lg:col-span-4 row-span-2): Plan of the day (Abyat to learn/review)",
+        "- Tamrin Card (col-span-1 md:col-span-4 lg:col-span-2 row-span-1): Next 5-day cycle countdown",
+        "- Stats Card (col-span-1 md:col-span-2 lg:col-span-2 row-span-1): Progress across all moutoun",
+        "Library Section (Horizontal scroll or simple list of active texts)"
+      ]
+    },
+    "reading_view": {
+      "description": "The emotional core of the app. Distraction-free reading experience.",
+      "structure": [
+        "Minimal Header (Back button, Title, Settings toggle)",
+        "Content Area (Split view desktop, Stacked or Toggle mobile):",
+        "- Right Column (RTL): Arabic text in Amiri, massive size, generous line-height.",
+        "- Left Column (LTR): French translation in Manrope, muted color, smaller size.",
+        "Floating Action Bar: Play audio, Zoom In/Out, Toggle Translation"
+      ]
+    },
+    "ai_assistant": {
+      "description": "Chat interface for explaining passages.",
+      "structure": [
+        "Side panel or distinct chat page.",
+        "User messages: subtle grey background.",
+        "AI messages: warm sand background. Scholarly tone."
+      ]
+    }
+  },
+  "motion": {
+    "page_transitions": "opacity 0.4s ease-in-out",
+    "reading_scroll": "Lenis smooth scroll is MANDATORY for the reading view to make it feel luxurious.",
+    "hover_states": "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease"
+  },
+  "accessibility": {
+    "contrast": "Ensure Arabic text (#0D0C0A) against background (#F8F6F0) exceeds APCA readability standards for prolonged reading.",
+    "focus": "focus:ring-2 focus:ring-primary/50 focus:outline-none rounded-md",
+    "test_ids": "MANDATORY: Add `data-testid` to all interactive elements (e.g., `data-testid='zoom-in-btn'`, `data-testid='play-audio-btn'`, `data-testid='start-tamrin-btn'`)."
+  },
+  "image_urls": {
+    "backgrounds": {
+      "subtle_parchment": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/26c0275b-d48c-488e-b650-c8000e49a349/images/de78d126e48c127a9ed1106f16bc710e1ca2fc9b315be264518e79df735e43fd.png",
+        "description": "Use sparingly as a blended background for hero sections or the Tamrin mode entry screen to give a physical paper feel. Opacity 20% max.",
+        "category": "hero_background"
+      },
+      "abstract_ink": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/26c0275b-d48c-488e-b650-c8000e49a349/images/db9f8603c6ef22ea7520233d140a4783fe735bdc3ecae46e049e0945c2bcbf12.png",
+        "description": "Use for empty states, 'No tasks today', or as an abstract graphic on the Library screen.",
+        "category": "empty_state"
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "INSTALLATION: Add Google Fonts: 'Cormorant Garamond', 'Manrope', and 'Amiri'. Add @phosphor-icons/react for elegant duotone icons. Add lenis for smooth scrolling.",
+    "TAILWIND CONFIG: Add the custom colors (primary: #9E4A35, background: #F8F6F0, surface: #FFFFFF, text: #1A1816) and fonts to tailwind.config.js.",
+    "BILINGUAL SUPPORT: The reading view MUST support RTL (dir='rtl') for the Arabic text blocks. Ensure the flex/grid layouts don't break when direction changes.",
+    "READING CONTROLS: Implement the zoom controls by updating a global or local state that changes the Tailwind text size classes on the Arabic text container (e.g., text-3xl -> text-4xl -> text-5xl).",
+    "TAMRIN MODE: This should feel like a 'special event' screen. Use the parchment background, center the content, use the Terracotta primary color heavily here.",
+    "COMPONENT AVOIDANCE: Do NOT use standard Shadcn cards for the reading view. The text must flow directly on the background or a very subtle paper-like container without heavy borders. Use Shadcn ONLY for forms, dialogs, and dropdowns."
+  ]
+}
