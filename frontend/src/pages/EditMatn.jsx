@@ -44,7 +44,14 @@ export default function EditMatn() {
     function addBayt(afterIdx) {
         setAbyat((a) => {
             const next = [...a];
-            next.splice(afterIdx + 1, 0, { arabic: "", translation_fr: "" });
+            // Inherit section/chapter from the previous bayt for continuity
+            const prev = next[afterIdx] || {};
+            next.splice(afterIdx + 1, 0, {
+                arabic: "",
+                translation_fr: "",
+                section: prev.section || "",
+                chapter: prev.chapter || "",
+            });
             return next;
         });
     }
@@ -66,7 +73,11 @@ export default function EditMatn() {
             return;
         }
         const validAbyat = abyat.filter((b) => b.arabic.trim()).map((b, i) => ({
-            index: i, arabic: b.arabic.trim(), translation_fr: b.translation_fr.trim(),
+            index: i,
+            arabic: b.arabic.trim(),
+            translation_fr: b.translation_fr.trim(),
+            section: (b.section || "").trim() || null,
+            chapter: (b.chapter || "").trim() || null,
         }));
         if (validAbyat.length === 0) { alert("Au moins un passage requis."); return; }
         setSaving(true);
@@ -149,6 +160,14 @@ export default function EditMatn() {
                                 <textarea data-testid={`edit-bayt-translation-${i}`} value={b.translation_fr} onChange={(e) => updateBayt(i, "translation_fr", e.target.value)}
                                     placeholder="Traduction française" rows={2}
                                     className="w-full px-3 py-2 bg-transparent focus:outline-none text-sm resize-none mt-2" />
+                                <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-sand/50">
+                                    <input data-testid={`edit-bayt-section-${i}`} value={b.section || ""} onChange={(e) => updateBayt(i, "section", e.target.value)}
+                                        placeholder="Section (optionnel)"
+                                        className="w-full px-3 py-2 rounded-lg bg-parchment/40 border border-sand text-xs text-ink/80 focus:outline-none focus:ring-1 focus:ring-ink/20" />
+                                    <input data-testid={`edit-bayt-chapter-${i}`} value={b.chapter || ""} onChange={(e) => updateBayt(i, "chapter", e.target.value)}
+                                        placeholder="Chapitre (optionnel)"
+                                        className="w-full px-3 py-2 rounded-lg bg-parchment/40 border border-sand text-xs text-ink/80 focus:outline-none focus:ring-1 focus:ring-ink/20" />
+                                </div>
                             </div>
                         ))}
                     </div>

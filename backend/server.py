@@ -35,6 +35,8 @@ class Bayt(BaseModel):
     index: Optional[int] = None
     arabic: str
     translation_fr: str
+    section: Optional[str] = None
+    chapter: Optional[str] = None
 
 
 class MatnBase(BaseModel):
@@ -166,7 +168,7 @@ async def update_streak(device_id: str):
 
 async def ensure_preloaded_in_db():
     """Seed/refresh preloaded moutoun. Only updates if seed_version is newer (preserves user edits)."""
-    SEED_VERSION = 2  # bump this when matn content is updated upstream
+    SEED_VERSION = 3  # bump this when matn content is updated upstream
     for m in PRELOADED_MOUTOUN:
         existing = await db.moutoun.find_one({"id": m["id"]}, {"_id": 0})
         if not existing:

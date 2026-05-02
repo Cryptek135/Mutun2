@@ -246,8 +246,46 @@ export default function MatnReader() {
                 )}
 
                 <div className="space-y-10">
-                    {matn.abyat.map((b) => {
-                        const prog = progressMap[b.index];
+                    {(() => {
+                        // Group abyat by section/chapter while preserving order
+                        const groups = [];
+                        let lastSection = undefined;
+                        let lastChapter = undefined;
+                        matn.abyat.forEach((b) => {
+                            const sec = b.section || null;
+                            const chap = b.chapter || null;
+                            if (sec !== lastSection) {
+                                groups.push({ type: "section", title: sec });
+                                lastSection = sec;
+                                lastChapter = undefined;
+                            }
+                            if (chap !== lastChapter) {
+                                groups.push({ type: "chapter", title: chap });
+                                lastChapter = chap;
+                            }
+                            groups.push({ type: "bayt", bayt: b });
+                        });
+                        return groups.map((g, gi) => {
+                            if (g.type === "section") {
+                                if (!g.title) return null;
+                                return (
+                                    <div key={`sec-${gi}`} data-testid={`section-${gi}`} className="pt-8 first:pt-0">
+                                        <p className="text-[10px] uppercase tracking-[0.3em] text-ink/40 font-semibold mb-2">Section</p>
+                                        <h3 className="font-serif text-3xl sm:text-4xl text-ink tracking-tight border-b border-ink/15 pb-4">{g.title}</h3>
+                                    </div>
+                                );
+                            }
+                            if (g.type === "chapter") {
+                                if (!g.title) return null;
+                                return (
+                                    <div key={`chap-${gi}`} data-testid={`chapter-${gi}`} className="pt-4">
+                                        <p className="text-[10px] uppercase tracking-[0.25em] text-terracotta font-semibold mb-1">Chapitre</p>
+                                        <h4 className="font-serif text-xl sm:text-2xl text-ink/85">{g.title}</h4>
+                                    </div>
+                                );
+                            }
+                            const b = g.bayt;
+                            const prog = progressMap[b.index];
                         const isMemorized = prog?.status === "memorized";
                         const isLearning = prog?.status === "learning";
                         const isHiddenMode = displayMode === "hidden" && !revealed[b.index];
@@ -325,7 +363,8 @@ export default function MatnReader() {
                                 </div>
                             </article>
                         );
-                    })}
+                        });
+                    })()}
                 </div>
             </div>
 
