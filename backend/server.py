@@ -272,6 +272,16 @@ async def delete_matn(matn_id: str, device_id: str):
     return {"ok": True}
 
 
+@api_router.get("/moutoun/deleted/list")
+async def list_deleted_preloaded(device_id: Optional[str] = None):
+    """List preloaded moutoun that have been tombstoned, so the user can restore them."""
+    docs = await db.moutoun.find(
+        {"is_preloaded": True, "is_deleted": True},
+        {"_id": 0, "id": 1, "title_fr": 1, "title_ar": 1, "category": 1, "author_fr": 1},
+    ).to_list(100)
+    return docs
+
+
 @api_router.post("/moutoun/{matn_id}/restore")
 async def restore_preloaded_matn(matn_id: str):
     """Restore a tombstoned preloaded matn to its original seed content."""

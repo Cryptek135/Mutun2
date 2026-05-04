@@ -23,8 +23,16 @@ export const api = {
         const { data } = await http.delete(`/moutoun/${id}`, { params: { device_id: getDeviceId() } });
         return data;
     },
+    updateMatn: async (id, updates) => {
+        const { data } = await http.put(`/moutoun/${id}`, updates);
+        return data;
+    },
     restoreMatn: async (id) => {
         const { data } = await http.post(`/moutoun/${id}/restore`);
+        return data;
+    },
+    listDeletedMoutoun: async () => {
+        const { data } = await http.get("/moutoun/deleted/list");
         return data;
     },
     getProgress: async (matn_id) => {

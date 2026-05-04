@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { BookOpen, Trash2, Plus, Loader2 } from "lucide-react";
+import { BookOpen, Trash2, Plus, Loader2, RotateCcw } from "lucide-react";
 
 const categoryLabels = {
     "3aqida": "Croyance",
@@ -13,14 +13,16 @@ const categoryLabels = {
 
 export default function Library() {
     const [moutoun, setMoutoun] = useState([]);
+    const [deletedMoutoun, setDeletedMoutoun] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("all");
 
     async function load() {
         setLoading(true);
         try {
-            const data = await api.listMoutoun();
+            const [data, deleted] = await Promise.all([api.listMoutoun(), api.listDeletedMoutoun()]);
             setMoutoun(data);
+            setDeletedMoutoun(deleted);
         } finally {
             setLoading(false);
         }
@@ -28,14 +30,27 @@ export default function Library() {
 
     useEffect(() => { load(); }, []);
 
-    async function handleDelete(id, e) {
+    async function handleDelete(id, isPreloaded, e) {
         e.preventDefault();
-        if (!window.confirm("Supprimer ce matn personnalisé ?")) return;
+        e.stopPropagation();
+        const msg = isPreloaded
+            ? "Supprimer ce matn préchargé ? Tu pourras le restaurer plus tard depuis la bibliothèque."
+            : "Supprimer ce matn personnalisé ? Cette action est définitive.";
+        if (!window.confirm(msg)) return;
         try {
             await api.deleteMatn(id);
             load();
         } catch {
             alert("Impossible de supprimer ce matn.");
+        }
+    }
+
+    async function handleRestore(id) {
+        try {
+            await api.restoreMatn(id);
+            load();
+        } catch {
+            alert("Impossible de restaurer ce matn.");
         }
     }
 
@@ -92,15 +107,14 @@ export default function Library() {
                                 <span className="text-[10px] uppercase tracking-wider bg-parchment text-ink/60 px-2.5 py-1 rounded-full font-semibold">
                                     {categoryLabels[m.category] || m.category}
                                 </span>
-                                {!m.is_preloaded && (
-                                    <button
-                                        data-testid={`delete-matn-${m.id}`}
-                                        onClick={(e) => handleDelete(m.id, e)}
-                                        className="text-ink/30 hover:text-terracotta transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                )}
+                                <button
+                                    data-testid={`delete-matn-${m.id}`}
+                                    onClick={(e) => handleDelete(m.id, m.is_preloaded, e)}
+                                    className="text-ink/30 hover:text-terracotta transition-colors"
+                                    title={m.is_preloaded ? "Supprimer (restaurable)" : "Supprimer définitivement"}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
                             </div>
                             <p dir="rtl" className="font-arabic text-3xl text-ink mb-2 leading-snug">{m.title_ar}</p>
                             <h3 className="font-serif text-2xl text-ink mb-1">{m.title_fr}</h3>
@@ -112,6 +126,35 @@ export default function Library() {
                             </div>
                         </Link>
                     ))}
+                </div>
+            )}
+
+            {deletedMoutoun.length > 0 && (
+                <div data-testid="deleted-section" className="mt-16 pt-10 border-t border-sand">
+                    <p className="text-[11px] uppercase tracking-[0.25em] text-ink/40 font-semibold mb-2">Corbeille</p>
+                    <h2 className="font-serif text-2xl text-ink mb-2">Moutoun supprimés</h2>
+                    <p className="text-sm text-ink/60 mb-5">Ces moutoun préchargés ont été supprimés. Tu peux les restaurer à leur contenu original.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {deletedMoutoun.map((m) => (
+                            <div
+                                key={m.id}
+                                data-testid={`deleted-matn-${m.id}`}
+                                className="bg-parchment/40 border border-dashed border-sand rounded-xl p-4 flex items-center justify-between gap-3"
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-serif text-base text-ink truncate">{m.title_fr}</p>
+                                    <p dir="rtl" className="font-arabic text-sm text-ink/60 truncate">{m.title_ar}</p>
+                                </div>
+                                <button
+                                    data-testid={`restore-matn-${m.id}`}
+                                    onClick={() => handleRestore(m.id)}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-full bg-ink text-alabaster hover:bg-ink/85 transition-colors flex-shrink-0"
+                                >
+                                    <RotateCcw className="w-3.5 h-3.5" /> Restaurer
+                                </button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
